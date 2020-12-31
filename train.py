@@ -78,5 +78,5 @@ def train(path, img_size):
     return learner
 
 if __name__ == "__main__":
-    print("In main")
+    print("In main ")
     train('/home/dev/Downloads/data/bdd_tiny', 608)
