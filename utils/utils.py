@@ -1,6 +1,9 @@
 import math
 import os
 import torch
+from torch import nn
+
+from fastai.vision.all import *
 
 def bbox_iou(box1, box2, x1y1x2y2=True, GIoU=False, DIoU=False, CIoU=False):
     # Returns the IoU of box1 to box2. box1 is 4, box2 is nx4
@@ -144,3 +147,31 @@ def select_device(device='', apex=False, batch_size=None):
 
     print('')  # skip a line
     return torch.device('cuda:0' if cuda else 'cpu')
+
+def custom_splitter(train_pct):
+    def fn(name_list):
+        train_idx, valid_idx = RandomSplitter(valid_pct=1.0-train_pct)(name_list)
+        np.random.shuffle(train_idx)
+        train_len = int(len(train_idx) * train_pct)
+        return train_idx[0:train_len], valid_idx
+    return fn
+
+class EvaluatorCallback(Callback):
+    def after_pred(self):
+        if inference:
+            self.learn.yb = tuple()
+            return
+        labels = []
+        for i, l in enumerate(self.yb[1]):
+            l = l.unsqueeze(-1)
+            l = torch.cat([l, l], dim=1)
+            l[:, 0] = i  # add target image index for build_targets()
+            labels.append(l)
+
+        labels = torch.cat(labels, dim=0).view(self.yb[0].shape[0], self.yb[0].shape[1], 2)
+
+        res = torch.cat([labels, cast(self.yb[0], Tensor)], dim=2) # bboxes + categories
+        res = torch.cat([res[i, :(res[:, :, 1:].sum(dim=2) != 0).sum(dim=1)[i]] for i in range(len(res))]) # remove zero entries (added while padding in collate_fn)
+        res[:, 2:] = (res[:, 2:] + 1) / 2 # rescale bboxes from [-1, 1] to [0, 1]
+        res[..., 2:] = xyxy2xywh(res[..., 2:])
+        self.learn.yb = [res]

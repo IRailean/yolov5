@@ -3,71 +3,50 @@ from pathlib import Path
 from fastai.data.all import *
 from fastai.vision.all import *
 
-def train(path, img_size):
-    coco_source = Path(path + '/images')
-    images, lbl_bbox = get_annotations(path + '/labels/data_mini.json')
+from models.yolo import Model
+from utils.config import hyp
+from utils.loss import *
+from utils.utils import custom_splitter, EvaluatorCallback
 
-    # After get_annotations bboxes have [x1, y1, x2, y2] or ltrb format
-    one_batch_training = False
-
+def get_data_source(path, one_batch_training):
     if one_batch_training:
         images, lbl_bbox = images[:32], lbl_bbox[:32] # one_batch
-        Path("/content/coco_sample/one_batch_train_sample").mkdir(parents=True, exist_ok=True)
+        Path(path + '/one_batch_train_sample').mkdir(parents=True, exist_ok=True)
         for img in images:
-            shutil.copy2(Path('/content/coco_sample/train_sample/' + img), Path('/content/coco_sample/one_batch_train_sample/'))
-        coco_source = Path('/content/coco_sample/one_batch_train_sample/')
+            shutil.copy2(Path(path + '/images/' + img), Path(path + '/one_batch_train_sample/'))
+        data_source = Path(path + '/one_batch_train_sample/')
+    else:
+        data_source = Path(path + '/images')
+        images, lbl_bbox = get_annotations(path + '/labels/data_mini.json')
 
+    return data_source, images, lbl_bbox
+
+def create_dataloaders(path, img_size, bs=2, device='cuda', one_batch_training=False):
+    data_source, images, lbl_bbox = get_data_source(path, one_batch_training)
     img2bbox = dict(zip(images, lbl_bbox))
 
-
-    def custom_splitter(train_pct):
-        def fn(name_list):
-            train_idx, valid_idx = RandomSplitter(valid_pct=1.0-train_pct)(name_list)
-            np.random.shuffle(train_idx)
-            train_len = int(len(train_idx) * train_pct)
-            return train_idx[0:train_len], valid_idx
-        return fn
-
-    coco = DataBlock(blocks=(ImageBlock, BBoxBlock, BBoxLblBlock),
-                    get_items=get_image_files,
-                    splitter=custom_splitter(train_pct=0.95),
-                    get_y=[lambda o: img2bbox[o.name][0], lambda o: img2bbox[o.name][1]], 
-                    item_tfms=Resize(img_size),
-                    batch_tfms=Normalize.from_stats(*imagenet_stats),
-                    n_inp=1)
+    datablock = DataBlock(blocks=(ImageBlock, BBoxBlock, BBoxLblBlock),
+                          get_items=get_image_files,
+                          splitter=custom_splitter(train_pct=0.95),
+                          get_y=[lambda o: img2bbox[o.name][0], lambda o: img2bbox[o.name][1]], 
+                          item_tfms=Resize(img_size),
+                          batch_tfms=Normalize.from_stats(*imagenet_stats),
+                          n_inp=1)
 
 
-    dls = coco.dataloaders(coco_source, bs=2, device=torch.device('cuda'), shuffle_train=False)
-    dsets = coco.datasets(coco_source)
+    dls = datablock.dataloaders(data_source, bs=bs, device=torch.device(device), shuffle_train=False)
+    dsets = datablock.datasets(data_source)
 
+    return dls, dsets
+
+def train(path, img_size, bs=2, one_batch_training=False, path_to_model='./models/yolov5s.yaml'):
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    dls, dsets = create_dataloaders(path, img_size, bs, device, one_batch_training)
     n_classes = len(dls.vocab)
 
-    inference = False
-
-    model = Model(cfg='/content/yolov5s.yaml', nc=n_classes)
-    if use_cuda:
+    model = Model(cfg=path_to_model, nc=n_classes)
+    if 'cuda' == device:
         model.cuda()
-
-
-    class EvaluatorCallback(Callback):
-        def after_pred(self):
-            if inference:
-                self.learn.yb = tuple()
-                return
-            labels = []
-            for i, l in enumerate(self.yb[1]):
-                l = l.unsqueeze(-1)
-                l = torch.cat([l, l], dim=1)
-                l[:, 0] = i  # add target image index for build_targets()
-                labels.append(l)
-
-            labels = torch.cat(labels, dim=0).view(self.yb[0].shape[0], self.yb[0].shape[1], 2)
-
-            res = torch.cat([labels, cast(self.yb[0], Tensor)], dim=2) # bboxes + categories
-            res = torch.cat([res[i, :(res[:, :, 1:].sum(dim=2) != 0).sum(dim=1)[i]] for i in range(len(res))]) # remove zero entries (added while padding in collate_fn)
-            res[:, 2:] = (res[:, 2:] + 1) / 2 # rescale bboxes from [-1, 1] to [0, 1]
-            res[..., 2:] = xyxy2xywh(res[..., 2:])
-            self.learn.yb = [res]
         
     hyp['cls'] *= n_classes / 80.  # scale coco-tuned hyp['cls'] to current dataset
     model.nc = n_classes  # attach number of classes to model
