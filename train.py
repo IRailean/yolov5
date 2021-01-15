@@ -2,6 +2,7 @@ import shutil
 from pathlib import Path
 from fastai.data.all import *
 from fastai.vision.all import *
+from argparse import ArgumentParser
 
 from models.yolo import Model
 from utils.config import hyp
@@ -56,6 +57,18 @@ def train(path, img_size, bs=2, one_batch_training=False, path_to_model='./model
 
     return learner
 
+def make_parser():
+    parser = ArgumentParser(description="YoloV5 PyTorch")
+    
+    parser.add_argument('--data-path', '-datapath', type=str, required=True,
+                        help='path to the data')
+    parser.add_argument('--img-size', '-img_size', type=int, default=608, required=False,
+                        help='image size')
+    return parser
+
 if __name__ == "__main__":
     print("In main ")
-    train('/home/dev/Downloads/data/bdd_tiny', 608)
+    parser = make_parser()
+    args = parser.parse_args()
+
+    train(args.data_path, args.img_size)
