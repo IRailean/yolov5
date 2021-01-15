@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 from models.yolo import Model
 from utils.config import hyp
 from utils.loss import *
-from utils.utils import custom_splitter, EvaluatorCallback
+from utils.utils import custom_splitter, EvaluatorCallback, check_file
 
 def get_data_source(path, one_batch_training):
     if one_batch_training:
@@ -40,12 +40,12 @@ def create_dataloaders(path, img_size, bs=2, device='cuda', one_batch_training=F
 
     return dls, dsets
 
-def train(path, img_size, bs=2, one_batch_training=False, path_to_model='./models/yolov5s.yaml'):
+def train(path, img_size, cfg='yolov5s.yaml', bs=2, one_batch_training=False):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     dls, dsets = create_dataloaders(path, img_size, bs, device, one_batch_training)
     n_classes = len(dls.vocab)
 
-    model = Model(cfg=path_to_model, nc=n_classes)
+    model = Model(cfg=check_file(cfg), nc=n_classes)
     if 'cuda' == device:
         model.cuda()
         
