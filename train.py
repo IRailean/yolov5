@@ -54,6 +54,8 @@ def train(path, img_size, cfg='yolov5s.yaml', bs=2, one_batch_training=False):
     model.hyp = hyp
     model.gr = 1.0
     learner = Learner(dls, model, loss_func=partial(compute_loss, model=model), cbs=[EvaluatorCallback()])
+    learner.fit_one_cycle(10, lr_max=3e-3)
+    learner.save('/content/model_temp')
 
     return learner
 

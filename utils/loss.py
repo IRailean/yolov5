@@ -1,5 +1,10 @@
 import math
 
+import torch 
+from torch import nn
+
+from utils.utils import *
+
 def compute_loss(p, targets, model):  # predictions, targets, model
     device = targets.device
     lcls, lbox, lobj = torch.zeros(1, device=device), torch.zeros(1, device=device), torch.zeros(1, device=device)
@@ -51,25 +56,17 @@ def compute_loss(p, targets, model):  # predictions, targets, model
             # with open('targets.txt', 'a') as file:
             #     [file.write('%11.5g ' * 4 % tuple(x) + '\n') for x in torch.cat((txy[i], twh[i]), 1)]
 
-        if debug_mode:
-          if math.isnan(BCEobj(pi[..., 4], tobj)):
-            print("BCEobj(pi[..., 4], tobj) is nan")
         lobj += BCEobj(pi[..., 4], tobj) * balance[i]  # obj loss
 
     s = 3 / no  # output count scaling
-    if debug_mode:
-      if math.isnan(lbox) or math.isnan(lobj) or math.isnan(lcls):
-        print("lbox is nan ", math.isnan(lbox), "lobj is nan ", math.isnan(lobj), "lcls is nan ", math.isnan(lcls))
+
     lbox *= h['box'] * s
     lobj *= h['obj'] * s * (1.4 if no == 4 else 1.)
     lcls *= h['cls'] * s
     bs = tobj.shape[0]  # batch size
 
     loss = lbox + lobj + lcls
-    if debug_mode:
-      if math.isnan(loss):
-        print("lbox is nan ", math.isnan(lbox), "lobj is nan ", math.isnan(lobj), "lcls is nan ", math.isnan(lcls))
-    return loss * bs# , torch.cat((lbox, lobj, lcls, loss)).detach()
+    return loss * bs # , torch.cat((lbox, lobj, lcls, loss)).detach()
 
 
 def build_targets(p, targets, model):
