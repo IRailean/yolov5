@@ -158,7 +158,7 @@ def custom_splitter(train_pct):
 
 class EvaluatorCallback(Callback):
     def after_pred(self):
-        if inference:
+        if self.learn.model.model[-1].inference:
             self.learn.yb = tuple()
             return
         labels = []
