@@ -23,9 +23,11 @@ def get_data_source(path, one_batch_training):
     return data_source, images, lbl_bbox
 
 # Pickle does not support lambdas
-def get_bbox(o):
+from functools import partial 
+
+def get_bbox(img2bbox, o):
     return img2bbox[o.name][0]
-def get_label(o):
+def get_label(img2bbox, o):
     return img2bbox[o.name][1]
 
 def create_dataloaders(path, img_size, bs=2, device='cuda', one_batch_training=False):
@@ -35,7 +37,7 @@ def create_dataloaders(path, img_size, bs=2, device='cuda', one_batch_training=F
     datablock = DataBlock(blocks=(ImageBlock, BBoxBlock, BBoxLblBlock),
                           get_items=get_image_files,
                           splitter=custom_splitter(train_pct=1.0),
-                          get_y=[get_bbox, get_label], 
+                          get_y=[partial(get_bbox, img2bbox), partial(get_label, img2bbox)], 
                           item_tfms=Resize(img_size),
                           batch_tfms=Normalize.from_stats(*imagenet_stats),
                           n_inp=1)
