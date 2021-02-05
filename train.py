@@ -81,5 +81,5 @@ if __name__ == "__main__":
     parser = make_parser()
     args = parser.parse_args()
 
-    fastprogress.master_bar,fastprogress.progress_bar = force_console_behavior()
+    master_bar, progress_bar = force_console_behavior()
     train(args.data_path, args.img_size)
