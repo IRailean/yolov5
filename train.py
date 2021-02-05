@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 from models.yolo import Model
 from utils.config import hyp
 from utils.loss import *
-from utils.utils import custom_splitter, EvaluatorCallback, check_file, get_bbox, get_label
+from utils.utils import custom_splitter, EvaluatorCallback, check_file
 
 def get_data_source(path, one_batch_training):
     if one_batch_training:
