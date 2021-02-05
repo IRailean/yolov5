@@ -185,3 +185,8 @@ def check_file(file):
         assert len(files), 'File Not Found: %s' % file  # assert file was found
         assert len(files) == 1, "Multiple files match '%s', specify exact path: %s" % (file, files)  # assert unique
         return files[0]  # return file
+
+def get_bbox(o):
+    return img2bbox[o.name][0]
+def get_label(o):
+    return img2bbox[o.name][1]

@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 from models.yolo import Model
 from utils.config import hyp
 from utils.loss import *
-from utils.utils import custom_splitter, EvaluatorCallback, check_file
+from utils.utils import custom_splitter, EvaluatorCallback, check_file, get_bbox, get_label
 
 def get_data_source(path, one_batch_training):
     if one_batch_training:
@@ -28,8 +28,8 @@ def create_dataloaders(path, img_size, bs=2, device='cuda', one_batch_training=F
 
     datablock = DataBlock(blocks=(ImageBlock, BBoxBlock, BBoxLblBlock),
                           get_items=get_image_files,
-                          splitter=custom_splitter(train_pct=0.95),
-                          get_y=[lambda o: img2bbox[o.name][0], lambda o: img2bbox[o.name][1]], 
+                          splitter=custom_splitter(train_pct=1.0),
+                          get_y=[get_bbox, get_label], 
                           item_tfms=Resize(img_size),
                           batch_tfms=Normalize.from_stats(*imagenet_stats),
                           n_inp=1)
