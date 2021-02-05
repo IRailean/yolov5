@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 from models.yolo import Model
 from utils.config import hyp
 from utils.loss import *
-from utils.utils import custom_splitter, EvaluatorCallback, check_files
+from utils.utils import custom_splitter, EvaluatorCallback, check_file
 
 def get_data_source(path, one_batch_training):
     if one_batch_training:
@@ -60,7 +60,8 @@ def train(path, img_size, cfg='yolov5s.yaml', bs=2, one_batch_training=False):
     model.hyp = hyp
     model.gr = 1.0
     learner = Learner(dls, model, loss_func=partial(compute_loss, model=model), cbs=[EvaluatorCallback()])
-    learner.fit_one_cycle(10, lr_max=3e-3)
+    with learner.no_bar():
+        learner.fit_one_cycle(10, lr_max=3e-3)
     learner.save('/content/model_temp')
     learner.export(fname='/content/learner_05_02_2021.pkl')
 
