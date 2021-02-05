@@ -22,15 +22,15 @@ def get_data_source(path, one_batch_training):
 
     return data_source, images, lbl_bbox
 
+# Pickle does not support lambdas
+def get_bbox(o):
+    return img2bbox[o.name][0]
+def get_label(o):
+    return img2bbox[o.name][1]
+
 def create_dataloaders(path, img_size, bs=2, device='cuda', one_batch_training=False):
     data_source, images, lbl_bbox = get_data_source(path, one_batch_training)
     img2bbox = dict(zip(images, lbl_bbox))
-
-    # Pickle does not support lambdas
-    def get_bbox(o):
-        return img2bbox[o.name][0]
-    def get_label(o):
-        return img2bbox[o.name][1]
 
     datablock = DataBlock(blocks=(ImageBlock, BBoxBlock, BBoxLblBlock),
                           get_items=get_image_files,
@@ -61,7 +61,7 @@ def train(path, img_size, cfg='yolov5s.yaml', bs=2, one_batch_training=False):
     model.gr = 1.0
     learner = Learner(dls, model, loss_func=partial(compute_loss, model=model), cbs=[EvaluatorCallback()])
     with learner.no_bar():
-        learner.fit_one_cycle(10, lr_max=3e-3)
+        learner.fit_one_cycle(args.epochs, lr_max=3e-3)
     learner.save('/content/model_temp')
     learner.export(fname='/content/learner_05_02_2021.pkl')
 
@@ -74,6 +74,8 @@ def make_parser():
                         help='path to the data')
     parser.add_argument('--img-size', '-img_size', type=int, default=608, required=False,
                         help='image size')
+    parser.add_argument('--epochs', '-epochs', type=int, default=1, required=False,
+                        help='num of epochs')
     return parser
 
 if __name__ == "__main__":
