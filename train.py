@@ -7,8 +7,7 @@ from argparse import ArgumentParser
 from models.yolo import Model
 from utils.config import hyp
 from utils.loss import *
-from utils.utils import custom_splitter, EvaluatorCallback, check_file
-from fastprogress.fastprogress import force_console_behavior
+from utils.utils import custom_splitter, EvaluatorCallback, check_files
 
 def get_data_source(path, one_batch_training):
     if one_batch_training:
@@ -81,5 +80,4 @@ if __name__ == "__main__":
     parser = make_parser()
     args = parser.parse_args()
 
-    master_bar, progress_bar = force_console_behavior()
     train(args.data_path, args.img_size)
